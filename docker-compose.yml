@@ -5,7 +5,10 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8000:8000"
+    volumes:
+      - ./coverage-report:/var/www/html/coverage-report
     environment:
+      APP_KEY: ${APP_KEY}
       APP_ENV: local
       APP_DEBUG: "true"
       DB_CONNECTION: pgsql
@@ -33,6 +36,7 @@ services:
       context: .
       dockerfile: Dockerfile
     environment:
+      APP_KEY: ${APP_KEY}
       APP_ENV: local
       DB_CONNECTION: pgsql
       DB_HOST: postgres

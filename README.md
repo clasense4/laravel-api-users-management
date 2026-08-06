@@ -6,6 +6,35 @@ Built for the Checkproof PHP Code Test.
 
 ---
 
+## Quick Start for Reviewers (Docker, zero local setup)
+
+Everything runs in Docker — no local PHP/Composer required:
+
+```bash
+git clone <repo>
+cd kiro-user-management-api
+
+# One-time setup (creates .env, starts services, runs migrations + seeds)
+make docker-setup
+
+# Run tests
+make docker-test
+
+# Generate coverage report (opens locally at coverage-report/index.html)
+make docker-coverage
+
+# Run code quality checks (pint + phpstan)
+make docker-quality
+```
+
+**Services:**
+- API: http://localhost:8000
+- Mail UI (Mailpit): http://localhost:8025
+
+**Note:** `make docker-setup` will prompt you to generate `APP_KEY` if missing. Run `php artisan key:generate --show` (requires local PHP) or copy one from `.env.example` comments.
+
+---
+
 ## Quick Start (local, SQLite)
 
 ```bash
@@ -73,7 +102,7 @@ php artisan migrate:status
 
 ### Schema
 
-**users** — `id`, `email` (unique), `password`, `name`, `role` (default: `user`), `active` (default: `true`), `created_at`, `updated_at`
+**users** — `id`, `email` (unique), `password`, `name`, `role` (enum: `administrator`|`manager`|`user`, default: `user`), `active` (default: `true`), `created_at`, `updated_at`
 
 **orders** — `id`, `user_id` (FK → users.id), `created_at`
 
@@ -327,14 +356,14 @@ POST /api/users
         → UserCreated event (after commit)
           → SendAccountCreatedEmail listener (queued)
           → NotifyAdministrator listener (queued)
-      → UserResource (response shape)
+      → CreatedUserResource (response shape)
 
 GET /api/users
   auth:sanctum middleware
   ListUsersRequest (validation)
     → UserController::index
       → ListUsers action (query: active, search, sort, withCount, paginate)
-        → UserResource per item (includes can_edit via UserPolicy::update)
+        → ListedUserResource per item (includes can_edit via UserPolicy::update)
 ```
 
 Key files:
@@ -346,7 +375,8 @@ Key files:
 | `app/Http/Controllers/Api/UserController.php` | HTTP coordination only |
 | `app/Http/Requests/StoreUserRequest.php` | Create validation |
 | `app/Http/Requests/ListUsersRequest.php` | List validation |
-| `app/Http/Resources/UserResource.php` | Response shape |
+| `app/Http/Resources/CreatedUserResource.php` | POST response shape |
+| `app/Http/Resources/ListedUserResource.php` | GET response shape |
 | `app/Policies/UserPolicy.php` | `can_edit` authorization |
 | `app/Listeners/SendAccountCreatedEmail.php` | User confirmation email |
 | `app/Listeners/NotifyAdministrator.php` | Admin notification email |

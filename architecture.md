@@ -72,8 +72,8 @@ app/
 │   │   ├── StoreUserRequest.php
 │   │   └── ListUsersRequest.php
 │   └── Resources/
-│       ├── UserResource.php
-│       └── UserCollection.php
+│       ├── CreatedUserResource.php
+│       └── ListedUserResource.php
 ├── Listeners/
 │   ├── SendAccountCreatedEmail.php
 │   └── NotifyAdministrator.php
@@ -94,10 +94,6 @@ database/
 ├── factories/
 ├── migrations/
 └── seeders/
-
-docker/
-├── app/
-└── entrypoint/
 
 tests/
 ├── Feature/
@@ -133,7 +129,7 @@ CreateUser Action
             +--> NotifyAdministrator
     |
     v
-UserResource
+CreatedUserResource
     |
     v
 201 Created
@@ -166,10 +162,12 @@ UserResource
 - Allow each email to retry independently.
 - Support future side effects without changing the action.
 
-#### UserResource
+#### CreatedUserResource / ListedUserResource
 
-- Define the public API contract.
-- Explicitly exclude sensitive data.
+- Define explicit API contracts per endpoint.
+- `CreatedUserResource` — POST response (id, email, name, created_at).
+- `ListedUserResource` — GET response (adds role, orders_count, can_edit).
+- No conditional logic based on authentication state.
 
 ---
 
@@ -197,9 +195,9 @@ ListUsers Action
     +--> pagination
     |
     v
-UserCollection / UserResource
+ListedUserResource per user
     |
-    +--> UserPolicy::update
+    +--> UserPolicy::update (can_edit)
     |
     v
 200 OK
@@ -221,8 +219,8 @@ User::query()
     ->when($search, function (Builder $query, string $search): void {
         $query->where(function (Builder $query) use ($search): void {
             $query
-                ->where('name', 'ilike', "%{$search}%")
-                ->orWhere('email', 'ilike', "%{$search}%");
+                ->where('name', 'like', "%{$search}%")
+                ->orWhere('email', 'like', "%{$search}%");
         });
     })
     ->orderBy($sortColumn, $sortDirection)
@@ -699,13 +697,29 @@ orders.user_id
 
 Indexes should later be validated through query plans and realistic data.
 
+## Role Constraint
+
+`role` is a string column with a CHECK constraint enforcing the three valid values:
+
+```sql
+CHECK (role IN ('administrator', 'manager', 'user'))
+```
+
+The constraint is applied via a migration on PostgreSQL. SQLite does not support
+`ALTER TABLE ... ADD CONSTRAINT` after creation, so on SQLite the PHP `UserRole`
+enum cast is the guard. Both environments reject invalid roles through Eloquent.
+
 ## Search Evolution
 
 Initial:
 
 ```text
-ILIKE '%search%'
+LIKE '%search%'
 ```
+
+Note: SQLite (local/tests) treats `LIKE` as case-insensitive for ASCII by default.
+PostgreSQL treats `LIKE` as case-sensitive; use `ILIKE` or `LOWER()` when migrating.
+See README "Search and PostgreSQL" for the full discussion.
 
 Evolution:
 

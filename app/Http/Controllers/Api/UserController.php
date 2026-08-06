@@ -7,7 +7,8 @@ use App\Actions\Users\ListUsers;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ListUsersRequest;
 use App\Http\Requests\StoreUserRequest;
-use App\Http\Resources\UserResource;
+use App\Http\Resources\CreatedUserResource;
+use App\Http\Resources\ListedUserResource;
 use Illuminate\Http\JsonResponse;
 
 /**
@@ -61,9 +62,9 @@ class UserController extends Controller
     {
         $user = $this->createUser->execute($request->validated());
 
-        UserResource::withoutWrapping();
+        CreatedUserResource::withoutWrapping();
 
-        return (new UserResource($user))
+        return (new CreatedUserResource($user))
             ->response()
             ->setStatusCode(201);
     }
@@ -130,14 +131,9 @@ class UserController extends Controller
             sortBy: $request->validated('sortBy', 'created_at') ?? 'created_at',
         );
 
-        // Resolve each resource with the current request so that
-        // UserResource::toArray() has access to $request->user() for can_edit.
-        $users = $paginator->getCollection()
-            ->map(fn ($user) => (new UserResource($user))->resolve($request));
-
         return response()->json([
             'page' => $paginator->currentPage(),
-            'users' => $users->values(),
+            'users' => ListedUserResource::collection($paginator->items()),
         ]);
     }
 }
