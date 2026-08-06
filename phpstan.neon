@@ -1,0 +1,19 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    paths:
+        - app/
+
+    level: 6
+
+    treatPhpDocTypesAsCertain: false
+
+    ignoreErrors:
+        # JsonResource proxies model properties via __get; PHPStan cannot see them.
+        - path: app/Http/Resources/UserResource.php
+          message: '#Access to an undefined property App\\Http\\Resources\\UserResource::#'
+
+        # ResourceCollection exposes paginator methods via __call; currentPage() is valid at runtime.
+        - path: app/Http/Resources/UserCollection.php
+          message: '#Call to an undefined method App\\Http\\Resources\\UserCollection::currentPage#'
