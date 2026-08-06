@@ -97,7 +97,7 @@
     </ul>
 
     <ul class="toc-footer" id="last-updated">
-        <li>Last updated: August 5, 2026</li>
+        <li>Last updated: August 6, 2026</li>
     </ul>
 </div>
 
@@ -110,17 +110,21 @@
     <strong>Base URL</strong>: <code>http://localhost:8000</code>
 </aside>
 <h2 id="authentication">Authentication</h2>
-<p><code>GET /api/users</code> requires a Sanctum token passed as a Bearer token:</p>
-<pre><code>Authorization: Bearer &lt;your-token&gt;</code></pre>
-<p>Generate a token via <code>php artisan tinker</code>:</p>
-<pre><code class="language-php">$user = \App\Models\User::where('email', 'admin@example.com')-&gt;first();
-echo $user-&gt;createToken('dev')-&gt;plainTextToken;</code></pre>
-<p><code>POST /api/users</code> is public — no authentication required.</p>
+<p><code>GET /api/users</code> requires a Sanctum Bearer token. <code>POST /api/users</code> is public.</p>
+<h3 id="quick-start-copy-a-token">Quick Start — Copy a token</h3>
+<p>Run any of these commands, then paste the output into the <strong>Authorization</strong> field above:</p>
+<p><strong>Administrator</strong> (can edit everyone):</p>
+<pre><code class="language-bash">php artisan tinker --execute 'echo \App\Models\User::where("email","admin@example.com")-&gt;first()-&gt;createToken("docs")-&gt;plainTextToken'</code></pre>
+<p><strong>Manager</strong> (can edit regular users only):</p>
+<pre><code class="language-bash">php artisan tinker --execute 'echo \App\Models\User::where("email","manager@example.com")-&gt;first()-&gt;createToken("docs")-&gt;plainTextToken'</code></pre>
+<p><strong>Regular User</strong> (can edit self only):</p>
+<pre><code class="language-bash">php artisan tinker --execute 'echo \App\Models\User::where("email","user.a@example.com")-&gt;first()-&gt;createToken("docs")-&gt;plainTextToken'</code></pre>
+<p>All seed passwords are <code>password123</code>.</p>
 
         <h1 id="authenticating-requests">Authenticating requests</h1>
 <p>To authenticate requests, include an <strong><code>Authorization</code></strong> header with the value <strong><code>"Bearer {YOUR_API_TOKEN}"</code></strong>.</p>
 <p>All authenticated endpoints are marked with a <code>requires authentication</code> badge in the documentation below.</p>
-<p>Generate a token: <code>php artisan tinker --execute 'echo \App\Models\User::first()-&gt;createToken("dev")-&gt;plainTextToken;'</code></p>
+<p>See the Introduction section for copy-paste ready token commands.</p>
 
         <h1 id="users">Users</h1>
 
@@ -632,7 +636,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
                value="jane"
                data-component="query">
     <br>
-<p>Filter users by name or email (case-insensitive partial match). Must not be greater than 255 characters. Example: <code>jane</code></p>
+<p>Filter users by name or email (partial match using LIKE). Must not be greater than 255 characters. Example: <code>jane</code></p>
             </div>
                                     <div style="padding-left: 28px; clear: unset;">
                 <b style="line-height: 2;"><code>page</code></b>&nbsp;&nbsp;

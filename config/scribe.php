@@ -14,20 +14,37 @@ return [
     'intro_text' => <<<'INTRO'
         ## Authentication
 
-        `GET /api/users` requires a Sanctum token passed as a Bearer token:
+        `GET /api/users` requires a Sanctum Bearer token. `POST /api/users` is public.
 
+        ### Quick Start — Copy a token
+
+        Run any of these commands, then paste the output into the **Authorization** field above:
+
+        **Administrator** (can edit everyone):
+        ```bash
+        # Without Docker
+        php artisan tinker --execute 'echo \App\Models\User::where("email","admin@example.com")->first()->createToken("docs")->plainTextToken'
+        # With Docker
+        docker compose exec app php artisan tinker --execute 'echo \App\Models\User::where("email","admin@example.com")->first()->createToken("docs")->plainTextToken'
         ```
-        Authorization: Bearer <your-token>
+
+        **Manager** (can edit regular users only):
+        ```bash
+        # Without Docker
+        php artisan tinker --execute 'echo \App\Models\User::where("email","manager@example.com")->first()->createToken("docs")->plainTextToken'
+        # With Docker
+        docker compose exec app php artisan tinker --execute 'echo \App\Models\User::where("email", "manager@example.com")->first()->createToken("docs")->plainTextToken'
         ```
 
-        Generate a token via `php artisan tinker`:
-
-        ```php
-        $user = \App\Models\User::where('email', 'admin@example.com')->first();
-        echo $user->createToken('dev')->plainTextToken;
+        **Regular User** (can edit self only):
+        ```bash
+        # Without Docker
+        php artisan tinker --execute 'echo \App\Models\User::where("email","user.a@example.com")->first()->createToken("docs")->plainTextToken'
+        # With Docker
+        docker compose exec app php artisan tinker --execute 'echo \App\Models\User::where("email", "user.a@example.com")->first()->createToken("docs")->plainTextToken'
         ```
 
-        `POST /api/users` is public — no authentication required.
+        All seed passwords are `password123`.
         INTRO,
 
     'base_url' => config('app.url'),
@@ -77,7 +94,7 @@ return [
         'name' => 'Authorization',
         'use_value' => env('SCRIBE_AUTH_KEY'),
         'placeholder' => '{YOUR_API_TOKEN}',
-        'extra_info' => 'Generate a token: `php artisan tinker --execute \'echo \\App\\Models\\User::first()->createToken("dev")->plainTextToken;\'`',
+        'extra_info' => 'See the Introduction section for copy-paste ready token commands.',
     ],
 
     'examples' => [
