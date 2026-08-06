@@ -1,6 +1,10 @@
 # User Management API
 
-A Laravel REST API implementing user management with authentication, role-based authorization, queued email notifications, and structured error handling. Built for the Checkproof PHP Code Test.
+A Laravel REST API implementing user management with authentication, role-based authorization, and email notifications.
+
+## Demo
+
+TBA
 
 ---
 
@@ -10,42 +14,62 @@ Pick the mode that fits your setup:
 
 ### Mode 1 — Docker (zero dependencies)
 
+> [!TIP]
+> Install docker from https://get.docker.com/
+
+```bash
+curl -fsSL https://get.docker.com -o install-docker.sh
+cat install-docker.sh
+sh install-docker.sh --dry-run
+sudo sh install-docker.sh
+```
+
 No PHP, Composer, or database required. Everything runs in Docker:
 
 ```bash
+git clone https://github.com/clasense4/laravel-api-users-management.git
+cd laravel-api-users-management
 make docker-setup      # Build, start services, migrate + seed
 make docker-test       # Run tests
-make docker-coverage   # Generate HTML coverage report
 make docker-quality    # Run pint + phpstan
 ```
 
-**Services:** API at `http://localhost:8000`, mail UI (Mailpit) at `http://localhost:8025`.
+**Services:** API at `http://localhost:8000/api/docs`, mail UI (Mailpit) at `http://localhost:8025`.
 
 ### Mode 2 — Local PHP + Docker Mailpit
 
-Requires PHP 8.3+, Composer 2, and the `sqlite3` extension:
+Requires PHP 8.3+, Composer 2, and the `sqlite3` extension.
+
+> [!TIP]
+> Install the dependency using Mise https://mise.jdx.dev/
 
 ```bash
-# 1. Set up the application
-make setup             # Copy .env, install deps, generate key, migrate
-make seed              # Load demo data
+git clone https://github.com/clasense4/laravel-api-users-management.git
+cd laravel-api-users-management
 
-# 2. Start Mailpit for email capture (optional — emails also log to storage/logs)
-docker compose up -d mailpit
+make setup                    # Copy .env, install deps, generate key, migrate
+docker compose up -d mailpit  # Start mailpit
+php artisan serve             # Then open http://localhost:8000/api/docs and http://localhost:8025
+make test                     # Run all tests
+make quality                  # pint + phpstan
 
-# 3. Start the API
-php artisan serve
-
-# 4. Run tests and quality checks
-make test              # Run all tests
+# Run coverage
 make coverage          # Coverage (requires PCOV)
-make quality           # pint + phpstan
+
+# See: https://github.com/krakjoe/pcov/blob/develop/INSTALL.md
+# Build from scratch
+git clone https://github.com/krakjoe/pcov.git
+cd pcov
+phpize
+./configure --enable-pcov
+make
+make test
+make install
+# Via PECL
+pecl install pcov
 ```
 
-The API is available at `http://localhost:8000/api`. Mailpit UI at `http://localhost:8025`.
-
-If you don't have Docker at all, emails are written to `storage/logs/laravel.log`.
-
+The API is available at `http://localhost:8000/api/docs`. Mailpit UI at `http://localhost:8025`.
 ---
 
 ## Seed Data
@@ -70,15 +94,34 @@ All seeded passwords are `password123`.
 `GET /api/users` requires a **Sanctum API token** (Bearer). Generate one:
 
 ```bash
-php artisan tinker --execute '
-$user = \App\Models\User::where("email", "admin@example.com")->first();
-echo $user->createToken("dev")->plainTextToken;
-'
+# From Docker
+docker compose exec app php artisan tinker --execute 'echo \App\Models\User::where("email","admin@example.com")->first()->createToken("docs")->plainTextToken'
+
+# From Local
+php artisan tinker --execute 'echo \App\Models\User::where("email","admin@example.com")->first()->createToken("docs")->plainTextToken'
 ```
 
 Use it in requests:
 ```
 Authorization: Bearer <token>
+```
+
+Example:
+```bash
+curl --request GET \
+    --get "http://localhost:8000/api/users?search=jane&page=1&sortBy=created_at" \
+    --header "Authorization: Bearer 1|Fag4xKoTbE204Lk5Fim9P1hDnQO9JYkYGKQ1VB8X0c4860ff" \
+    --header "Content-Type: application/json" \
+    --header "Accept: application/json"
+```
+
+To make the output pretty, can utilize jq to make it easy to read:
+```bash
+curl --request GET \
+    --get "http://localhost:8000/api/users" \
+    --header "Authorization: Bearer 1|Fag4xKoTbE204Lk5Fim9P1hDnQO9JYkYGKQ1VB8X0c4860ff" \
+    --header "Content-Type: application/json" \
+    --header "Accept: application/json" | jq -r .
 ```
 
 `POST /api/users` is **public** — no authentication required.
