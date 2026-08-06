@@ -5,7 +5,8 @@
 # Local environment — never bake secrets into the image
 .env
 .env.*
-!.env.example
+!.env.example.docker
+!.env.testing
 
 # Dependencies — reinstalled during build
 vendor
@@ -26,8 +27,6 @@ storage/app/private/*
 # Dev tooling
 .editorconfig
 .scribe
-phpunit.xml
-phpstan.neon
 tasks.md
 architecture.md
 ux-narrative.md

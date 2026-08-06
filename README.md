@@ -1,110 +1,50 @@
 # User Management API
 
-A Laravel REST API implementing user management with authentication, role-based authorization, queued email notifications, and structured error handling.
-
-Built for the Checkproof PHP Code Test.
+A Laravel REST API implementing user management with authentication, role-based authorization, queued email notifications, and structured error handling. Built for the Checkproof PHP Code Test.
 
 ---
 
-## Quick Start for Reviewers (Docker, zero local setup)
+## Quick Start
 
-Everything runs in Docker — no local PHP/Composer required:
+Pick the mode that fits your setup:
+
+### Mode 1 — Docker (zero dependencies)
+
+No PHP, Composer, or database required. Everything runs in Docker:
 
 ```bash
-git clone <repo>
-cd kiro-user-management-api
-
-# One-time setup (creates .env, starts services, runs migrations + seeds)
-make docker-setup
-
-# Run tests
-make docker-test
-
-# Generate coverage report (opens locally at coverage-report/index.html)
-make docker-coverage
-
-# Run code quality checks (pint + phpstan)
-make docker-quality
+make docker-setup      # Build, start services, migrate + seed
+make docker-test       # Run tests
+make docker-coverage   # Generate HTML coverage report
+make docker-quality    # Run pint + phpstan
 ```
 
-**Services:**
-- API: http://localhost:8000
-- Mail UI (Mailpit): http://localhost:8025
+**Services:** API at `http://localhost:8000`, mail UI (Mailpit) at `http://localhost:8025`.
 
-**Note:** `make docker-setup` will prompt you to generate `APP_KEY` if missing. Run `php artisan key:generate --show` (requires local PHP) or copy one from `.env.example` comments.
+### Mode 2 — Local PHP + Docker Mailpit
 
----
-
-## Quick Start (local, SQLite)
+Requires PHP 8.3+, Composer 2, and the `sqlite3` extension:
 
 ```bash
-git clone <repo>
-cd kiro-user-management-api
-make setup        # installs deps, generates key, runs migrations
-make seed         # loads demo users and orders
+# 1. Set up the application
+make setup             # Copy .env, install deps, generate key, migrate
+make seed              # Load demo data
+
+# 2. Start Mailpit for email capture (optional — emails also log to storage/logs)
+docker compose up -d mailpit
+
+# 3. Start the API
 php artisan serve
+
+# 4. Run tests and quality checks
+make test              # Run all tests
+make coverage          # Coverage (requires PCOV)
+make quality           # pint + phpstan
 ```
 
-The API is now available at `http://localhost:8000/api`.
+The API is available at `http://localhost:8000/api`. Mailpit UI at `http://localhost:8025`.
 
----
-
-## Quick Start (Docker, PostgreSQL + Redis + Mailpit)
-
-```bash
-cp .env.example .env
-# Set APP_KEY in .env: php artisan key:generate --show
-docker compose up -d
-docker compose exec app php artisan migrate --seed
-```
-
-- API: http://localhost:8000
-- Mail viewer (Mailpit): http://localhost:8025
-
----
-
-## Requirements
-
-- PHP 8.4+
-- Composer 2
-- SQLite (local dev) or PostgreSQL 16 (Docker)
-- Redis (optional, required for queued mail in Docker)
-
----
-
-## Environment Configuration
-
-Copy `.env.example` to `.env` and adjust:
-
-| Variable | Description | Default |
-|---|---|---|
-| `APP_KEY` | Laravel encryption key | generate with `php artisan key:generate` |
-| `DB_CONNECTION` | `sqlite` or `pgsql` | `sqlite` (local) |
-| `QUEUE_CONNECTION` | `sync` or `redis` | `sync` (local), `redis` (Docker) |
-| `ADMIN_EMAIL` | Recipient for new-user admin notifications | `admin@example.com` |
-| `MAIL_HOST` / `MAIL_PORT` | SMTP host | `127.0.0.1:1025` (Mailpit) |
-| `DEPLOY_VERSION` | Included in error logs for correlation | `local` |
-
----
-
-## Database Setup
-
-```bash
-# Fresh migration
-php artisan migrate
-
-# Fresh migration with seed data
-php artisan migrate:fresh --seed
-
-# Check migration status
-php artisan migrate:status
-```
-
-### Schema
-
-**users** — `id`, `email` (unique), `password`, `name`, `role` (enum: `administrator`|`manager`|`user`, default: `user`), `active` (default: `true`), `created_at`, `updated_at`
-
-**orders** — `id`, `user_id` (FK → users.id), `created_at`
+If you don't have Docker at all, emails are written to `storage/logs/laravel.log`.
 
 ---
 
@@ -127,9 +67,7 @@ All seeded passwords are `password123`.
 
 ## Authentication
 
-`GET /api/users` requires a **Sanctum API token**.
-
-Generate a token for a seeded user:
+`GET /api/users` requires a **Sanctum API token** (Bearer). Generate one:
 
 ```bash
 php artisan tinker --execute '
@@ -138,13 +76,12 @@ echo $user->createToken("dev")->plainTextToken;
 '
 ```
 
-Use the token in requests:
-
+Use it in requests:
 ```
 Authorization: Bearer <token>
 ```
 
-`POST /api/users` is **public** — no authentication required (see Authorization Decisions below).
+`POST /api/users` is **public** — no authentication required.
 
 ---
 
@@ -152,7 +89,7 @@ Authorization: Bearer <token>
 
 ### POST /api/users
 
-Create a new user account.
+Create a new user account. Public endpoint.
 
 **Request:**
 
@@ -170,7 +107,7 @@ Create a new user account.
 | `password` | yes | min 8 characters |
 | `name` | yes | 3–50 characters |
 
-**Success Response — 201 Created:**
+**Success — 201 Created:**
 
 ```json
 {
@@ -181,13 +118,7 @@ Create a new user account.
 }
 ```
 
-**Error Responses:**
-
-| Condition | Status |
-|---|---|
-| Invalid input | 422 |
-| Duplicate email | 422 |
-| Server error | 500 |
+**Errors:** 422 (validation / duplicate email), 500 (unexpected — safe envelope with `request_id`).
 
 ---
 
@@ -199,19 +130,13 @@ List active users. Requires `Authorization: Bearer <token>`.
 
 | Parameter | Type | Default | Notes |
 |---|---|---|---|
-| `search` | string | — | Filters by name or email using `LIKE '%term%'` (substring match) |
-| `page` | integer ≥ 1 | 1 | Page number |
+| `search` | string | — | Substring match on name and email |
+| `page` | integer ≥ 1 | 1 | Page number (15 per page) |
 | `sortBy` | string | `created_at` | `name`, `email`, or `created_at` |
 
-**Sort directions:**
-- `name` → ascending
-- `email` → ascending
-- `created_at` → **descending** (newest first, default)
-- Secondary sort is always `id ASC` for deterministic pagination.
+**Sort directions:** `name` and `email` are ascending. `created_at` is descending (newest first). Secondary sort is always `id ASC` for deterministic pagination.
 
-**Page size:** 15 per page.
-
-**Success Response — 200 OK:**
+**Success — 200 OK:**
 
 ```json
 {
@@ -236,116 +161,15 @@ List active users. Requires `Authorization: Bearer <token>`.
 |---|---|---|
 | administrator | any | true |
 | manager | user | true |
-| manager | manager | false |
-| manager | administrator | false |
+| manager | manager / administrator | false |
 | user | self | true |
 | user | any other | false |
 
-**Error Responses:**
-
-| Condition | Status |
-|---|---|
-| Unauthenticated | 401 |
-| Invalid parameter | 422 |
-| Server error | 500 |
+**Errors:** 401 (unauthenticated), 422 (invalid parameters), 500 (unexpected).
 
 ---
 
-## API Documentation (Scribe)
-
-Interactive API docs are generated via [Scribe](https://scribe.knuckles.wtf).
-
-```bash
-# Generate / regenerate docs
-make docs
-# or
-php artisan scribe:generate
-
-# Then start the server and open:
-php artisan serve
-# → http://localhost:8000/api/docs
-```
-
-The docs include:
-- Interactive "Try it out" for every endpoint
-- Request/response examples with all validation rules
-- Postman collection: `storage/app/private/scribe/collection.json`
-- OpenAPI spec: `storage/app/private/scribe/openapi.yaml`
-
----
-
-## Running Tests
-
-```bash
-# All tests
-make test
-# or
-php artisan test --compact
-
-# Specific test file
-php artisan test --compact --filter=CreateUserApiTest
-
-# With coverage (requires PCOV extension — see below)
-make coverage
-# or
-php artisan test --coverage --min=70 --compact
-
-# HTML coverage report (opens in browser)
-php artisan test --coverage-html=coverage-report --compact
-# → open coverage-report/index.html
-```
-
-Tests use SQLite in-memory and never touch the real database.
-
-### Code Coverage
-
-Coverage is measured with [PCOV](https://github.com/krakjoe/pcov) — a lightweight extension built for coverage only (no debugger overhead).
-
-**Current coverage: 73% (73 tests, 153 assertions)**
-
-| File | Coverage |
-|---|---|
-| Actions, Controllers, Models, Policy, Middleware, Resources | ~95–100% |
-| Listeners (handle + backoff + tries) | ~90% |
-| Notifications (toMail content) | ~95% |
-| Requests (Scribe metadata helpers) | ~30% |
-
-The 70% minimum threshold excludes Scribe documentation helpers (`bodyParameters`, `queryParameters`) — these are metadata for generated API docs, not business logic. All critical paths — user creation, listing, authorization, email dispatch, error handling — are fully covered.
-
-#### Installing PCOV (one-time setup)
-
-If `php artisan test --coverage` fails with "No code coverage driver available":
-
-```bash
-# Build and install PCOV from source (requires phpize)
-git clone --depth=1 https://github.com/krakjoe/pcov.git /tmp/pcov
-cd /tmp/pcov && phpize && ./configure --enable-pcov && make -j$(nproc) && make install
-
-# Enable the extension (adjust path to match your PHP install)
-echo "extension=pcov" >> "$(php -r 'echo PHP_CONFIG_FILE_SCAN_DIR;')/pcov.ini"
-
-# Verify
-php -m | grep pcov
-```
-
-Alternatively, install [Xdebug](https://xdebug.org/docs/install) — it works with the same commands but is slower.
-
----
-
-## Quality Commands
-
-```bash
-make quality
-# runs pint (formatter) + phpstan (static analysis)
-
-# Individually:
-vendor/bin/pint --format agent         # fix code style
-vendor/bin/phpstan analyse             # static analysis
-```
-
----
-
-## Architecture Summary
+## Architecture
 
 ```
 POST /api/users
@@ -353,17 +177,17 @@ POST /api/users
     → UserController::store
       → CreateUser action (DB transaction)
         → User::create
-        → UserCreated event (after commit)
-          → SendAccountCreatedEmail listener (queued)
-          → NotifyAdministrator listener (queued)
+        → UserCreated event (dispatched after commit)
+          → SendAccountCreatedEmail listener (queued, 3 retries)
+          → NotifyAdministrator listener (queued, 3 retries)
       → CreatedUserResource (response shape)
 
 GET /api/users
   auth:sanctum middleware
   ListUsersRequest (validation)
     → UserController::index
-      → ListUsers action (query: active, search, sort, withCount, paginate)
-        → ListedUserResource per item (includes can_edit via UserPolicy::update)
+      → ListUsers action (query: active=true, search, sort, withCount, paginate)
+        → ListedUserResource per item (can_edit via UserPolicy::update)
 ```
 
 Key files:
@@ -371,93 +195,43 @@ Key files:
 | File | Responsibility |
 |---|---|
 | `app/Actions/Users/CreateUser.php` | User persistence + event dispatch |
-| `app/Actions/Users/ListUsers.php` | Query composition |
+| `app/Actions/Users/ListUsers.php` | Query composition with sort allowlisting |
 | `app/Http/Controllers/Api/UserController.php` | HTTP coordination only |
 | `app/Http/Requests/StoreUserRequest.php` | Create validation |
 | `app/Http/Requests/ListUsersRequest.php` | List validation |
 | `app/Http/Resources/CreatedUserResource.php` | POST response shape |
 | `app/Http/Resources/ListedUserResource.php` | GET response shape |
-| `app/Policies/UserPolicy.php` | `can_edit` authorization |
-| `app/Listeners/SendAccountCreatedEmail.php` | User confirmation email |
+| `app/Policies/UserPolicy.php` | `can_edit` authorization (role-based) |
+| `app/Listeners/SendAccountCreatedEmail.php` | Welcome email to new user |
 | `app/Listeners/NotifyAdministrator.php` | Admin notification email |
-| `app/Http/Middleware/AssignRequestId.php` | Request ID correlation |
+| `app/Http/Middleware/AssignRequestId.php` | Request ID generation / correlation |
+| `bootstrap/app.php` | Global exception handling (safe 500 responses) |
 
 ---
 
-## Assumptions and Design Decisions
+## Design Decisions
 
-### POST /api/users Authorization
+### POST /api/users is public
 
-`POST /api/users` is **public** (no authentication required). Rationale: the spec defines authentication-dependent behavior for `GET /api/users` but does not restrict who may create accounts. A public registration endpoint is the simplest reasonable interpretation. If this should be admin-only, add `auth:sanctum` and a Gate check to the route.
+The spec defines authentication-dependent behavior for `GET /api/users` but does not restrict who may create accounts. A public registration endpoint is the simplest reasonable interpretation. If this should be admin-only, add `auth:sanctum` and a Gate check.
 
-### Email Delivery
+### Email delivery
 
-Emails are sent via **queued listeners** (`ShouldQueue`) so the API response is never delayed by SMTP. Each email retries independently (3 attempts, backoff: 10s / 60s / 300s).
+Emails are sent via **queued listeners** (`ShouldQueue`) so the API response is never delayed by SMTP. In the default configuration (`QUEUE_CONNECTION=sync`), emails are sent synchronously — no queue worker required.
 
-In the local dev default (`QUEUE_CONNECTION=sync`), emails are sent synchronously — useful for testing without a worker running.
+Each email retries independently: 3 attempts with progressive backoff (10s / 60s / 300s). Failed jobs are logged with structured context.
 
-### Email Failure Semantics
+### Transaction and queue atomicity
 
-If email delivery fails after the user has been created, the user account remains valid. The failed job is persisted to `failed_jobs` and logged with structured context. Retry manually:
-
-```bash
-php artisan queue:retry all
-# or by UUID:
-php artisan queue:retry <uuid>
-```
-
-### Transaction and Queue Atomicity
-
-The user is inserted in a DB transaction. The `UserCreated` event is dispatched **after** the transaction commits, so workers never read uncommitted data. However, DB commit and queue publication are not atomic: if the process crashes between commit and publish, the event is lost and emails are never sent. This is documented and acceptable; a transactional outbox would mitigate it if stricter reliability is needed.
-
-### Duplicate Email
-
-Rejected at the Form Request layer with a 422 validation error. The database unique constraint provides a last-resort guard against concurrent duplicates.
+The user is inserted in a DB transaction. The `UserCreated` event is dispatched **after** the transaction commits, so listeners never read uncommitted data. However, DB commit and event dispatch are not atomic: if the process crashes between commit and dispatch, the event is lost. This is a known trade-off; a transactional outbox would mitigate it if stricter reliability is needed.
 
 ### Pagination
 
-Fixed page size of **15**. Offset pagination matches the required `page` contract. For very deep pagination at scale, cursor pagination should be introduced (requires an intentional API contract change).
+Fixed page size of **15**. Offset pagination with a secondary `ORDER BY id` prevents duplicates across pages.
 
-### Sort Direction
+### Error handling
 
-- `name`, `email`: ascending
-- `created_at` (default): descending (newest first)
-
----
-
-### Search and PostgreSQL
-
-The current search uses `LIKE '%term%'` on both `name` and `email` columns. This has a **driver-dependent case-sensitivity difference**:
-
-| Driver | `LIKE` behaviour | Matches "alice" when searching "Alice"? |
-|---|---|---|
-| SQLite (local / tests) | case-insensitive for ASCII by default | ✅ yes |
-| PostgreSQL (Docker / production) | case-sensitive | ❌ no |
-
-The tests are written against SQLite and pass today. If this project migrates to PostgreSQL as the primary runtime, case-insensitive search will silently break. Two options to discuss as a team before that migration:
-
-**Option A — Use `ILIKE` on PostgreSQL (driver-aware)**
-```php
-$operator = DB::connection()->getDriverName() === 'pgsql' ? 'ilike' : 'like';
-$query->where('name', $operator, "%{$search}%")
-      ->orWhere('email', $operator, "%{$search}%");
-```
-Pros: minimal change, retains index friendliness parity. Cons: tests still run `LIKE` (SQLite), so the `ILIKE` branch is not exercised by the test suite without a separate PostgreSQL test environment.
-
-**Option B — Normalise with `LOWER()` (portable)**
-```php
-$query->whereRaw('LOWER(name) LIKE ?', ['%'.strtolower($search).'%'])
-      ->orWhereRaw('LOWER(email) LIKE ?', ['%'.strtolower($search).'%']);
-```
-Pros: identical behaviour on both drivers — tests exercise the exact same code path as production. Cons: requires a functional index (`LOWER(name)`) on PostgreSQL for performance at scale; `LOWER()` on SQLite works fine without one.
-
-**Recommendation:** Option B if you want test-production parity; Option A if you prefer a lighter touch and are comfortable adding a PostgreSQL test environment.
-
----
-
-## Error Handling
-
-Unexpected errors return a safe 500 response with no internal details:
+Unexpected errors return a safe 500 envelope:
 
 ```json
 {
@@ -467,39 +241,67 @@ Unexpected errors return a safe 500 response with no internal details:
 }
 ```
 
-Every response includes an `X-Request-ID` header. Inbound `X-Request-ID` values are echoed back if valid UUID format, otherwise a new UUID is generated.
+Every response includes an `X-Request-ID` header. Inbound `X-Request-ID` values are echoed back if valid UUID v4; otherwise a new UUID is generated and attached to all log entries for the request.
+
+### Search and PostgreSQL
+
+Search uses `LIKE '%term%'` on name and email. `LIKE` is case-insensitive on SQLite (test/dev) but case-sensitive on PostgreSQL. If migrating to PostgreSQL, either switch to `ILIKE` (driver-aware) or normalise with `LOWER()` (portable, test-production parity).
 
 ---
 
-## Queue and Email Worker
+## Running Tests
 
 ```bash
-# Start worker (local)
-php artisan queue:work --sleep=1 --tries=3 --timeout=60
+# All tests
+make test
+# → clears bootstrap cache first, then runs php artisan test --compact
 
-# View failed jobs
-php artisan queue:failed
+# Specific file
+php artisan test --compact --filter=CreateUserApiTest
 
-# Retry all failed jobs
-php artisan queue:retry all
+# Coverage (requires PCOV — see below)
+make coverage
 ```
 
-In Docker, the `queue-worker` service runs automatically with `stop_grace_period: 120s` so in-flight jobs finish before termination.
+Tests use SQLite in-memory (`:memory:`) and never touch the real database. The `test` and `coverage` Makefile targets clear `bootstrap/cache/*.php` before running to ensure `phpunit.xml` env settings are not overridden by a stale cache.
+
+### Installing PCOV (one-time)
+
+If `php artisan test --coverage` fails with "No code coverage driver available":
+
+```bash
+git clone --depth=1 https://github.com/krakjoe/pcov.git /tmp/pcov
+cd /tmp/pcov && phpize && ./configure --enable-pcov && make -j$(nproc) && make install
+echo "extension=pcov" >> "$(php -r 'echo PHP_CONFIG_FILE_SCAN_DIR;')/pcov.ini"
+php -m | grep pcov
+```
 
 ---
 
-## Graceful Shutdown
+## Quality Checks
 
-**API:** receives `SIGTERM`, finishes in-flight requests, exits. Laravel's built-in shutdown handling applies.
-
-**Worker:** receives `SIGTERM` via `stop_signal: SIGTERM` in Docker Compose. Laravel's `queue:work` stops reserving new jobs and finishes the current job before exiting. The `retry_after` (90s) > worker timeout (60s) prevents concurrent duplicate processing.
+```bash
+make quality
+# → vendor/bin/pint --format agent (code style)
+# → vendor/bin/phpstan analyse (static analysis, level 6)
+```
 
 ---
 
-## Known Limitations and Trade-offs
+## API Documentation (Scribe)
 
-- No login endpoint — tokens must be generated via `artisan tinker` or seeded. A `/api/auth/login` endpoint is outside scope.
-- SQLite is used for local dev/tests; PostgreSQL is used in Docker. Search uses `LIKE '%term%'` — SQLite treats `LIKE` as case-insensitive for ASCII by default, so tests pass without extra setup. See [Search and PostgreSQL](#search-and-postgresql) below for the production consideration.
-- No rate limiting — `POST /api/users` is unthrottled. Add `throttle:api` to the route and configure a `RateLimiter` in `AppServiceProvider` if per-IP limiting is required.
-- `orders_count` uses `withCount` (a single GROUP BY subquery). For very large datasets, a counter cache would be more efficient.
-- Search uses `LIKE '%term%'` which cannot use a standard B-tree index. For large datasets, consider PostgreSQL trigram indexes or full-text search.
+```bash
+make docs
+# → http://localhost:8000/api/docs
+```
+
+Includes interactive "Try it out", Postman collection, and OpenAPI spec.
+
+---
+
+## Known Limitations
+
+- No login endpoint — tokens are generated via `artisan tinker` (out of scope).
+- No rate limiting — add `throttle:api` middleware if needed.
+- Search uses `LIKE '%term%'` which cannot use a standard B-tree index at scale.
+- `orders_count` uses `withCount`; a counter cache would be more efficient for large datasets.

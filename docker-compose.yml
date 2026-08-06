@@ -9,65 +9,19 @@ services:
       - ./coverage-report:/var/www/html/coverage-report
       - sqlite_data:/app/database
     environment:
-      APP_KEY: ${APP_KEY}
+      # Fixed key for Docker dev/review (not secret — generated for convenience)
+      APP_KEY: base64:adoddGIl1QNCAbESfmf9udUcGDJdTc0kgqT3xJ8uMwQ=
       APP_ENV: local
       APP_DEBUG: "true"
       DB_CONNECTION: sqlite
       DB_DATABASE: /app/database/database.sqlite
-      QUEUE_CONNECTION: redis
-      REDIS_HOST: redis
-      CACHE_STORE: redis
+      QUEUE_CONNECTION: sync
+      CACHE_STORE: database
       MAIL_MAILER: smtp
       MAIL_HOST: mailpit
       MAIL_PORT: 1025
       ADMIN_EMAIL: admin@example.com
-    depends_on:
-      redis:
-        condition: service_healthy
     command: ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
-
-  queue-worker:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    volumes:
-      - sqlite_data:/app/database
-    environment:
-      APP_KEY: ${APP_KEY}
-      APP_ENV: local
-      DB_CONNECTION: sqlite
-      DB_DATABASE: /app/database/database.sqlite
-      QUEUE_CONNECTION: redis
-      REDIS_HOST: redis
-      CACHE_STORE: redis
-      MAIL_MAILER: smtp
-      MAIL_HOST: mailpit
-      MAIL_PORT: 1025
-      ADMIN_EMAIL: admin@example.com
-    depends_on:
-      redis:
-        condition: service_healthy
-    command:
-      - php
-      - artisan
-      - queue:work
-      - redis
-      - --sleep=1
-      - --tries=3
-      - --timeout=60
-    stop_signal: SIGTERM
-    stop_grace_period: 120s
-    restart: unless-stopped
-
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
 
   mailpit:
     image: axllent/mailpit:latest

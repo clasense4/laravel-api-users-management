@@ -7,17 +7,12 @@ setup:
 	php artisan migrate --no-interaction
 	@echo "Setup complete. Run 'make seed' to load demo data."
 
-up:
-	docker compose up -d
-	docker compose exec app php artisan migrate --no-interaction
-
-down:
-	docker compose down
-
 test:
+	@rm -f bootstrap/cache/*.php
 	php artisan test --compact
 
 coverage:
+	@rm -f bootstrap/cache/*.php
 	php artisan test --coverage --min=70 --compact
 
 quality:
@@ -39,25 +34,10 @@ docs:
 # Docker-based commands for reviewers (run everything inside containers)
 docker-setup:
 	@echo "Setting up Docker environment..."
-	@if [ ! -f .env ]; then \
-		cp .env.example .env; \
-		echo "Created .env from .env.example"; \
-		echo ""; \
-		echo "⚠️  ACTION REQUIRED:"; \
-		echo "Run: php artisan key:generate --show"; \
-		echo "Then paste the key into .env as APP_KEY=base64:..."; \
-		echo "Then run: make docker-setup again"; \
-		exit 1; \
-	fi
-	@if ! grep -q "^APP_KEY=base64:" .env; then \
-		echo "⚠️  APP_KEY not set in .env"; \
-		echo "Run: php artisan key:generate --show"; \
-		echo "Then paste the key into .env as APP_KEY=base64:..."; \
-		exit 1; \
-	fi
+	docker compose build
 	docker compose up -d
-	@echo "Waiting for services to be healthy..."
-	@sleep 5
+	@echo "Waiting for services to start..."
+	@sleep 3
 	docker compose exec app mkdir -p database
 	docker compose exec app touch database/database.sqlite
 	docker compose exec app php artisan migrate --seed --no-interaction
@@ -72,7 +52,7 @@ docker-setup:
 	@echo "  make docker-quality   # Run pint + phpstan"
 
 docker-test:
-	docker compose exec app php artisan test --compact
+	docker compose exec app sh -c 'rm -f bootstrap/cache/*.php && php artisan test --compact'
 
 docker-coverage:
 	docker compose exec app php artisan test --coverage-html=coverage-report --compact
