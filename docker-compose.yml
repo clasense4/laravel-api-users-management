@@ -7,16 +7,13 @@ services:
       - "8000:8000"
     volumes:
       - ./coverage-report:/var/www/html/coverage-report
+      - sqlite_data:/app/database
     environment:
       APP_KEY: ${APP_KEY}
       APP_ENV: local
       APP_DEBUG: "true"
-      DB_CONNECTION: pgsql
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_DATABASE: user_management
-      DB_USERNAME: postgres
-      DB_PASSWORD: secret
+      DB_CONNECTION: sqlite
+      DB_DATABASE: /app/database/database.sqlite
       QUEUE_CONNECTION: redis
       REDIS_HOST: redis
       CACHE_STORE: redis
@@ -25,8 +22,6 @@ services:
       MAIL_PORT: 1025
       ADMIN_EMAIL: admin@example.com
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_healthy
     command: ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
@@ -35,15 +30,13 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    volumes:
+      - sqlite_data:/app/database
     environment:
       APP_KEY: ${APP_KEY}
       APP_ENV: local
-      DB_CONNECTION: pgsql
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_DATABASE: user_management
-      DB_USERNAME: postgres
-      DB_PASSWORD: secret
+      DB_CONNECTION: sqlite
+      DB_DATABASE: /app/database/database.sqlite
       QUEUE_CONNECTION: redis
       REDIS_HOST: redis
       CACHE_STORE: redis
@@ -52,8 +45,6 @@ services:
       MAIL_PORT: 1025
       ADMIN_EMAIL: admin@example.com
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_healthy
     command:
@@ -67,22 +58,6 @@ services:
     stop_signal: SIGTERM
     stop_grace_period: 120s
     restart: unless-stopped
-
-  postgres:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_DB: user_management
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: secret
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
 
   redis:
     image: redis:7-alpine
@@ -101,4 +76,4 @@ services:
       - "8025:8025"   # Web UI
 
 volumes:
-  postgres_data:
+  sqlite_data:

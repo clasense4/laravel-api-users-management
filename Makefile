@@ -58,6 +58,8 @@ docker-setup:
 	docker compose up -d
 	@echo "Waiting for services to be healthy..."
 	@sleep 5
+	docker compose exec app mkdir -p database
+	docker compose exec app touch database/database.sqlite
 	docker compose exec app php artisan migrate --seed --no-interaction
 	@echo ""
 	@echo "✅ Docker environment ready!"
