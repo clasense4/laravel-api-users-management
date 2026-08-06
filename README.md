@@ -73,6 +73,7 @@ php -m | grep pcov
 ```
 
 The API is available at `http://localhost:8000/api/docs`. Mailpit UI at `http://localhost:8025`.
+
 ---
 
 ## Seed Data
@@ -92,7 +93,7 @@ All seeded passwords are `password123`.
 
 ---
 
-## Authentication
+## Endpoints, quick start
 
 `GET /api/users` requires a **Sanctum API token** (Bearer). Generate one:
 
@@ -129,6 +130,19 @@ curl --request GET \
 
 `POST /api/users` is **public** — no authentication required.
 
+Example:
+```bash
+curl --request POST \
+    "http://localhost:8000/api/users" \
+    --header "Content-Type: application/json" \
+    --header "Accept: application/json" \
+    --data "{
+    \"email\": \"jane@example.com\",
+    \"password\": \"password123\",
+    \"name\": \"Jane Doe\"
+}"
+```
+
 ---
 
 ## API Reference
@@ -141,7 +155,7 @@ Create a new user account. Public endpoint.
 
 ```json
 {
-  "email": "user@example.com",
+  "email": "jane@example.com",
   "password": "password123",
   "name": "Jane Doe"
 }
@@ -153,7 +167,7 @@ Create a new user account. Public endpoint.
 | `password` | yes | min 8 characters |
 | `name` | yes | 3–50 characters |
 
-**Success — 201 Created:**
+**Response: Success — 201 Created:**
 
 ```json
 {
@@ -182,7 +196,7 @@ List active users. Requires `Authorization: Bearer <token>`.
 
 **Sort directions:** `name` and `email` are ascending. `created_at` is descending (newest first). Secondary sort is always `id ASC` for deterministic pagination.
 
-**Success — 200 OK:**
+**Response: Success — 200 OK:**
 
 ```json
 {
@@ -216,6 +230,9 @@ List active users. Requires `Authorization: Bearer <token>`.
 ---
 
 ## Architecture
+
+> [!IMPORTANT]
+> Read more at [architecture.md](architecture.md)
 
 ```
 POST /api/users
@@ -305,7 +322,7 @@ make test
 # Specific file
 php artisan test --compact --filter=CreateUserApiTest
 
-# Coverage (requires PCOV — see below)
+# Coverage (requires PCOV)
 make coverage
 ```
 
