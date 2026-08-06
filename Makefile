@@ -1,4 +1,4 @@
-.PHONY: setup up down test quality migrate seed fresh docs docker-setup docker-test docker-coverage docker-quality
+.PHONY: setup test coverage coverage-report quality migrate seed fresh docs docker-setup docker-test docker-coverage docker-quality
 
 setup:
 	cp -n .env.example .env || true
@@ -23,12 +23,21 @@ coverage:
 	@rm -f bootstrap/cache/*.php
 	php artisan test --coverage --min=70 --compact
 
+coverage-report:
+	php artisan test --coverage-html=coverage-report --compact
+	@echo ""
+	@echo "✅ Coverage report generated!"
+	@echo "   Open: coverage-report/index.html"
+
 quality:
 	vendor/bin/pint --format agent
 	vendor/bin/phpstan analyse --memory-limit=256M
 
 migrate:
 	php artisan migrate --no-interaction
+
+seed:
+	php artisan db:seed --no-interaction
 
 fresh:
 	php artisan migrate:fresh --seed --no-interaction

@@ -52,6 +52,7 @@ docker compose up -d mailpit  # Start mailpit
 php artisan serve             # Then open http://localhost:8000/api/docs and http://localhost:8025
 make test                     # Run all tests
 make quality                  # pint + phpstan
+make docs                     # Generate scribe documentation
 
 # Run coverage
 make coverage          # Coverage (requires PCOV)
@@ -67,6 +68,8 @@ make test
 make install
 # Via PECL
 pecl install pcov
+# Check installation
+php -m | grep pcov
 ```
 
 The API is available at `http://localhost:8000/api/docs`. Mailpit UI at `http://localhost:8025`.
@@ -307,27 +310,6 @@ make coverage
 ```
 
 Tests use SQLite in-memory (`:memory:`) and never touch the real database. The `test` and `coverage` Makefile targets clear `bootstrap/cache/*.php` before running to ensure `phpunit.xml` env settings are not overridden by a stale cache.
-
-### Installing PCOV (one-time)
-
-If `php artisan test --coverage` fails with "No code coverage driver available":
-
-```bash
-git clone --depth=1 https://github.com/krakjoe/pcov.git /tmp/pcov
-cd /tmp/pcov && phpize && ./configure --enable-pcov && make -j$(nproc) && make install
-echo "extension=pcov" >> "$(php -r 'echo PHP_CONFIG_FILE_SCAN_DIR;')/pcov.ini"
-php -m | grep pcov
-```
-
----
-
-## Quality Checks
-
-```bash
-make quality
-# → vendor/bin/pint --format agent (code style)
-# → vendor/bin/phpstan analyse (static analysis, level 6)
-```
 
 ---
 
