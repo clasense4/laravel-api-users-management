@@ -170,7 +170,7 @@ List active users. Requires `Authorization: Bearer <token>`.
 
 | Parameter | Type | Default | Notes |
 |---|---|---|---|
-| `search` | string | — | Filters by name or email (case-insensitive) |
+| `search` | string | — | Filters by name or email using `LIKE '%term%'` (substring match) |
 | `page` | integer ≥ 1 | 1 | Page number |
 | `sortBy` | string | `created_at` | `name`, `email`, or `created_at` |
 
@@ -245,29 +245,6 @@ The docs include:
 
 ---
 
-## API Documentation (Scribe)
-
-Interactive API docs are generated via [Scribe](https://scribe.knuckles.wtf).
-
-```bash
-# Generate / regenerate docs
-make docs
-# or
-php artisan scribe:generate
-
-# Then start the server and open:
-php artisan serve
-# → http://localhost:8000/api/docs
-```
-
-The docs include:
-- Interactive "Try it out" for every endpoint
-- Request/response examples with all validation rules
-- Postman collection: `storage/app/private/scribe/collection.json`
-- OpenAPI spec: `storage/app/private/scribe/openapi.yaml`
-
----
-
 ## Running Tests
 
 ```bash
@@ -283,6 +260,10 @@ php artisan test --compact --filter=CreateUserApiTest
 make coverage
 # or
 php artisan test --coverage --min=70 --compact
+
+# HTML coverage report (opens in browser)
+php artisan test --coverage-html=coverage-report --compact
+# → open coverage-report/index.html
 ```
 
 Tests use SQLite in-memory and never touch the real database.
@@ -291,17 +272,16 @@ Tests use SQLite in-memory and never touch the real database.
 
 Coverage is measured with [PCOV](https://github.com/krakjoe/pcov) — a lightweight extension built for coverage only (no debugger overhead).
 
-**Current coverage: 71% (73 tests, 144 assertions)**
+**Current coverage: 73% (73 tests, 153 assertions)**
 
 | File | Coverage |
 |---|---|
-| Actions, Controllers, Models, Policy, Middleware | ~95–100% |
+| Actions, Controllers, Models, Policy, Middleware, Resources | ~95–100% |
 | Listeners (handle + backoff + tries) | ~90% |
-| Notifications (toMail content) | ~92% |
+| Notifications (toMail content) | ~95% |
 | Requests (Scribe metadata helpers) | ~30% |
-| `UserCollection` | 0% (not in hot path — controller resolves resources directly) |
 
-The 70% minimum excludes Scribe documentation helpers (`bodyParameters`, `queryParameters`) and the `UserCollection` class, which are infrastructure/metadata rather than business logic. All critical paths — user creation, listing, authorization, email dispatch, error handling — are fully covered.
+The 70% minimum threshold excludes Scribe documentation helpers (`bodyParameters`, `queryParameters`) — these are metadata for generated API docs, not business logic. All critical paths — user creation, listing, authorization, email dispatch, error handling — are fully covered.
 
 #### Installing PCOV (one-time setup)
 
@@ -415,6 +395,36 @@ Fixed page size of **15**. Offset pagination matches the required `page` contrac
 
 ---
 
+### Search and PostgreSQL
+
+The current search uses `LIKE '%term%'` on both `name` and `email` columns. This has a **driver-dependent case-sensitivity difference**:
+
+| Driver | `LIKE` behaviour | Matches "alice" when searching "Alice"? |
+|---|---|---|
+| SQLite (local / tests) | case-insensitive for ASCII by default | ✅ yes |
+| PostgreSQL (Docker / production) | case-sensitive | ❌ no |
+
+The tests are written against SQLite and pass today. If this project migrates to PostgreSQL as the primary runtime, case-insensitive search will silently break. Two options to discuss as a team before that migration:
+
+**Option A — Use `ILIKE` on PostgreSQL (driver-aware)**
+```php
+$operator = DB::connection()->getDriverName() === 'pgsql' ? 'ilike' : 'like';
+$query->where('name', $operator, "%{$search}%")
+      ->orWhere('email', $operator, "%{$search}%");
+```
+Pros: minimal change, retains index friendliness parity. Cons: tests still run `LIKE` (SQLite), so the `ILIKE` branch is not exercised by the test suite without a separate PostgreSQL test environment.
+
+**Option B — Normalise with `LOWER()` (portable)**
+```php
+$query->whereRaw('LOWER(name) LIKE ?', ['%'.strtolower($search).'%'])
+      ->orWhereRaw('LOWER(email) LIKE ?', ['%'.strtolower($search).'%']);
+```
+Pros: identical behaviour on both drivers — tests exercise the exact same code path as production. Cons: requires a functional index (`LOWER(name)`) on PostgreSQL for performance at scale; `LOWER()` on SQLite works fine without one.
+
+**Recommendation:** Option B if you want test-production parity; Option A if you prefer a lighter touch and are comfortable adding a PostgreSQL test environment.
+
+---
+
 ## Error Handling
 
 Unexpected errors return a safe 500 response with no internal details:
@@ -459,7 +469,7 @@ In Docker, the `queue-worker` service runs automatically with `stop_grace_period
 ## Known Limitations and Trade-offs
 
 - No login endpoint — tokens must be generated via `artisan tinker` or seeded. A `/api/auth/login` endpoint is outside scope.
-- SQLite is used for local dev/tests; PostgreSQL is used in Docker. The `ILIKE` query in `ListUsers` works with PostgreSQL only; the test environment uses SQLite `LIKE` (case-insensitive by default for ASCII).
-- No rate limiting per-IP on `POST /api/users` beyond the default 60 req/min throttle.
+- SQLite is used for local dev/tests; PostgreSQL is used in Docker. Search uses `LIKE '%term%'` — SQLite treats `LIKE` as case-insensitive for ASCII by default, so tests pass without extra setup. See [Search and PostgreSQL](#search-and-postgresql) below for the production consideration.
+- No rate limiting — `POST /api/users` is unthrottled. Add `throttle:api` to the route and configure a `RateLimiter` in `AppServiceProvider` if per-IP limiting is required.
 - `orders_count` uses `withCount` (a single GROUP BY subquery). For very large datasets, a counter cache would be more efficient.
 - Search uses `LIKE '%term%'` which cannot use a standard B-tree index. For large datasets, consider PostgreSQL trigram indexes or full-text search.

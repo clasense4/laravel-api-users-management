@@ -19,18 +19,16 @@ class UserResource extends JsonResource
             'created_at' => $this->created_at?->toIso8601String(),
         ];
 
-        // Include list-specific fields only when they are available
-        // (role is always present; orders_count and can_edit are list-only)
-        if ($this->role !== null) {
+        // role, orders_count, and can_edit are list-only fields —
+        // only include them when the request is authenticated (GET /api/users).
+        // POST /api/users is public and returns only the base fields.
+        if ($request->user() !== null && $this->role !== null) {
             $data['role'] = $this->role->value;
+            $data['can_edit'] = $request->user()->can('update', $this->resource);
         }
 
         if ($this->resource->relationLoaded('orders') || array_key_exists('orders_count', $this->resource->getAttributes())) {
             $data['orders_count'] = $this->orders_count ?? 0;
-        }
-
-        if ($request->user() !== null && $this->role !== null) {
-            $data['can_edit'] = $request->user()->can('update', $this->resource);
         }
 
         return $data;

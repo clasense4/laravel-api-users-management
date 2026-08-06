@@ -1,5 +1,6 @@
 <?php
 
+use App\Actions\Users\ListUsers;
 use App\Models\Order;
 use App\Models\User;
 use Laravel\Sanctum\Sanctum;
@@ -252,12 +253,23 @@ test('search combined with sort and pagination works together', function (): voi
     }
 });
 
-test('safe 500 response does not expose internals', function (): void {
-    // Force an exception by using an invalid driver that will blow up
+test('unhandled exception returns safe 500 response without exposing internals', function (): void {
+    $this->mock(ListUsers::class)
+        ->shouldReceive('execute')
+        ->andThrow(new RuntimeException('Simulated database failure'));
+
     Sanctum::actingAs(User::factory()->administrator()->create());
 
-    // Trigger a server error via a custom route that throws
-    $response = $this->getJson('/api/users?sortBy=name');
-    // This just verifies the normal path works; the 500 structure is tested via the exception handler
-    $response->assertStatus(200);
+    $response = $this->getJson('/api/users');
+
+    $response->assertStatus(500)
+        ->assertJsonStructure(['message', 'error_code', 'request_id'])
+        ->assertJsonFragment([
+            'message' => 'An unexpected error occurred.',
+            'error_code' => 'INTERNAL_ERROR',
+        ])
+        ->assertJsonMissingPath('exception')
+        ->assertJsonMissingPath('trace');
+
+    expect($response->json('request_id'))->toBeString()->not->toBeEmpty();
 });

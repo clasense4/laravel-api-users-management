@@ -20,9 +20,6 @@ test:
 coverage:
 	php artisan test --coverage --min=70 --compact
 
-coverage:
-	php artisan test --coverage --min=70 --compact
-
 quality:
 	vendor/bin/pint --format agent
 	vendor/bin/phpstan analyse --memory-limit=256M

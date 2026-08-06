@@ -58,6 +58,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 'method' => $request->method(),
                 'user_id' => $request->user()?->id,
                 'exception_class' => $e::class,
+                'exception_message' => $e->getMessage(),
                 'deployment_version' => config('app.version', 'unknown'),
             ]);
 

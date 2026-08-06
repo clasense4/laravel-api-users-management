@@ -26,7 +26,7 @@ class ListUsersRequest extends FormRequest
     {
         return [
             'search' => [
-                'description' => 'Filter users by name or email (case-insensitive partial match).',
+                'description' => 'Filter users by name or email (partial match using LIKE).',
                 'required' => false,
                 'example' => 'jane',
             ],

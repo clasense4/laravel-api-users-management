@@ -1,0 +1,36 @@
+.git
+.github
+.gitignore
+
+# Local environment — never bake secrets into the image
+.env
+.env.*
+!.env.example
+
+# Dependencies — reinstalled during build
+vendor
+node_modules
+
+# Local SQLite databases
+database/*.sqlite
+database/*.sqlite-shm
+database/*.sqlite-wal
+
+# Runtime-generated storage (logs, cache, sessions, compiled views)
+storage/logs/*
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+storage/app/private/*
+
+# Dev tooling
+.editorconfig
+.scribe
+phpunit.xml
+phpstan.neon
+tasks.md
+architecture.md
+ux-narrative.md
+senior-review.md
+requirements.md
+*.pdf
