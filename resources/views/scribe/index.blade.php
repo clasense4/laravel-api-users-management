@@ -22,9 +22,6 @@
     <style id="language-style">
         /* starts out as display none and is replaced with js later  */
                     body .content .bash-example code { display: none; }
-                    body .content .javascript-example code { display: none; }
-                    body .content .php-example code { display: none; }
-                    body .content .python-example code { display: none; }
             </style>
 
     <script>
@@ -38,7 +35,7 @@
 
 </head>
 
-<body data-languages="[&quot;bash&quot;,&quot;javascript&quot;,&quot;php&quot;,&quot;python&quot;]">
+<body data-languages="[&quot;bash&quot;]">
 
 <a href="#" id="nav-button">
     <span>
@@ -50,9 +47,6 @@
     
             <div class="lang-selector">
                                             <button type="button" class="lang-button" data-language-name="bash">bash</button>
-                                            <button type="button" class="lang-button" data-language-name="javascript">javascript</button>
-                                            <button type="button" class="lang-button" data-language-name="php">php</button>
-                                            <button type="button" class="lang-button" data-language-name="python">python</button>
                     </div>
     
     <div class="search">
@@ -114,11 +108,20 @@
 <h3 id="quick-start-copy-a-token">Quick Start — Copy a token</h3>
 <p>Run any of these commands, then paste the output into the <strong>Authorization</strong> field above:</p>
 <p><strong>Administrator</strong> (can edit everyone):</p>
-<pre><code class="language-bash">php artisan tinker --execute 'echo \App\Models\User::where("email","admin@example.com")-&gt;first()-&gt;createToken("docs")-&gt;plainTextToken'</code></pre>
+<pre><code class="language-bash"># Without Docker
+php artisan tinker --execute 'echo \App\Models\User::where("email","admin@example.com")-&gt;first()-&gt;createToken("docs")-&gt;plainTextToken'
+# With Docker
+docker compose exec app php artisan tinker --execute 'echo \App\Models\User::where("email","admin@example.com")-&gt;first()-&gt;createToken("docs")-&gt;plainTextToken'</code></pre>
 <p><strong>Manager</strong> (can edit regular users only):</p>
-<pre><code class="language-bash">php artisan tinker --execute 'echo \App\Models\User::where("email","manager@example.com")-&gt;first()-&gt;createToken("docs")-&gt;plainTextToken'</code></pre>
+<pre><code class="language-bash"># Without Docker
+php artisan tinker --execute 'echo \App\Models\User::where("email","manager@example.com")-&gt;first()-&gt;createToken("docs")-&gt;plainTextToken'
+# With Docker
+docker compose exec app php artisan tinker --execute 'echo \App\Models\User::where("email", "manager@example.com")-&gt;first()-&gt;createToken("docs")-&gt;plainTextToken'</code></pre>
 <p><strong>Regular User</strong> (can edit self only):</p>
-<pre><code class="language-bash">php artisan tinker --execute 'echo \App\Models\User::where("email","user.a@example.com")-&gt;first()-&gt;createToken("docs")-&gt;plainTextToken'</code></pre>
+<pre><code class="language-bash"># Without Docker
+php artisan tinker --execute 'echo \App\Models\User::where("email","user.a@example.com")-&gt;first()-&gt;createToken("docs")-&gt;plainTextToken'
+# With Docker
+docker compose exec app php artisan tinker --execute 'echo \App\Models\User::where("email", "user.a@example.com")-&gt;first()-&gt;createToken("docs")-&gt;plainTextToken'</code></pre>
 <p>All seed passwords are <code>password123</code>.</p>
 
         <h1 id="authenticating-requests">Authenticating requests</h1>
@@ -155,69 +158,6 @@ a notification to the system administrator.</p>
     \"name\": \"Jane Doe\"
 }"
 </code></pre></div>
-
-
-<div class="javascript-example">
-    <pre><code class="language-javascript">const url = new URL(
-    "http://localhost:8000/api/users"
-);
-
-const headers = {
-    "Content-Type": "application/json",
-    "Accept": "application/json",
-};
-
-let body = {
-    "email": "jane@example.com",
-    "password": "secret1234",
-    "name": "Jane Doe"
-};
-
-fetch(url, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(body),
-}).then(response =&gt; response.json());</code></pre></div>
-
-
-<div class="php-example">
-    <pre><code class="language-php">$client = new \GuzzleHttp\Client();
-$url = 'http://localhost:8000/api/users';
-$response = $client-&gt;post(
-    $url,
-    [
-        'headers' =&gt; [
-            'Content-Type' =&gt; 'application/json',
-            'Accept' =&gt; 'application/json',
-        ],
-        'json' =&gt; [
-            'email' =&gt; 'jane@example.com',
-            'password' =&gt; 'secret1234',
-            'name' =&gt; 'Jane Doe',
-        ],
-    ]
-);
-$body = $response-&gt;getBody();
-print_r(json_decode((string) $body));</code></pre></div>
-
-
-<div class="python-example">
-    <pre><code class="language-python">import requests
-import json
-
-url = 'http://localhost:8000/api/users'
-payload = {
-    "email": "jane@example.com",
-    "password": "secret1234",
-    "name": "Jane Doe"
-}
-headers = {
-  'Content-Type': 'application/json',
-  'Accept': 'application/json'
-}
-
-response = requests.request('POST', url, headers=headers, json=payload)
-response.json()</code></pre></div>
 
 </span>
 
@@ -418,74 +358,6 @@ count and a <code>can_edit</code> flag calculated against the authenticated user
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
-
-<div class="javascript-example">
-    <pre><code class="language-javascript">const url = new URL(
-    "http://localhost:8000/api/users"
-);
-
-const params = {
-    "search": "jane",
-    "page": "1",
-    "sortBy": "created_at",
-};
-Object.keys(params)
-    .forEach(key =&gt; url.searchParams.append(key, params[key]));
-
-const headers = {
-    "Authorization": "Bearer {YOUR_API_TOKEN}",
-    "Content-Type": "application/json",
-    "Accept": "application/json",
-};
-
-
-fetch(url, {
-    method: "GET",
-    headers,
-}).then(response =&gt; response.json());</code></pre></div>
-
-
-<div class="php-example">
-    <pre><code class="language-php">$client = new \GuzzleHttp\Client();
-$url = 'http://localhost:8000/api/users';
-$response = $client-&gt;get(
-    $url,
-    [
-        'headers' =&gt; [
-            'Authorization' =&gt; 'Bearer {YOUR_API_TOKEN}',
-            'Content-Type' =&gt; 'application/json',
-            'Accept' =&gt; 'application/json',
-        ],
-        'query' =&gt; [
-            'search' =&gt; 'jane',
-            'page' =&gt; '1',
-            'sortBy' =&gt; 'created_at',
-        ],
-    ]
-);
-$body = $response-&gt;getBody();
-print_r(json_decode((string) $body));</code></pre></div>
-
-
-<div class="python-example">
-    <pre><code class="language-python">import requests
-import json
-
-url = 'http://localhost:8000/api/users'
-params = {
-  'search': 'jane',
-  'page': '1',
-  'sortBy': 'created_at',
-}
-headers = {
-  'Authorization': 'Bearer {YOUR_API_TOKEN}',
-  'Content-Type': 'application/json',
-  'Accept': 'application/json'
-}
-
-response = requests.request('GET', url, headers=headers, params=params)
-response.json()</code></pre></div>
-
 </span>
 
 <span id="example-responses-GETapi-users">
@@ -673,9 +545,6 @@ Must be one of:
     <div class="dark-box">
                     <div class="lang-selector">
                                                         <button type="button" class="lang-button" data-language-name="bash">bash</button>
-                                                        <button type="button" class="lang-button" data-language-name="javascript">javascript</button>
-                                                        <button type="button" class="lang-button" data-language-name="php">php</button>
-                                                        <button type="button" class="lang-button" data-language-name="python">python</button>
                             </div>
             </div>
 </div>

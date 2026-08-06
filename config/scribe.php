@@ -106,9 +106,6 @@ return [
     // Supported: bash, javascript, php, python
     'example_languages' => [
         'bash',
-        'javascript',
-        'php',
-        'python',
     ],
 
     // Generate a Postman collection alongside the HTML docs.

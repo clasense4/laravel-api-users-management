@@ -9,19 +9,6 @@ services:
       - ./coverage-report:/var/www/html/coverage-report
     depends_on:
       - mailpit
-    # environment:
-    #   # Fixed key for Docker dev/review (not secret — generated for convenience)
-    #   APP_KEY: base64:adoddGIl1QNCAbESfmf9udUcGDJdTc0kgqT3xJ8uMwQ=
-    #   APP_ENV: local
-    #   APP_DEBUG: "true"
-    #   DB_CONNECTION: sqlite
-    #   DB_DATABASE: /app/database/database.sqlite
-    #   QUEUE_CONNECTION: sync
-    #   CACHE_STORE: database
-    #   MAIL_MAILER: smtp
-    #   MAIL_HOST: mailpit
-    #   MAIL_PORT: 1025
-    #   ADMIN_EMAIL: admin@example.com
     command: ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
 
   mailpit:
@@ -29,6 +16,3 @@ services:
     ports:
       - "1025:1025"   # SMTP
       - "8025:8025"   # Web UI
-
-# volumes:
-#   sqlite_data:

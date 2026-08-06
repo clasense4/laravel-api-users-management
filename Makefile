@@ -5,7 +5,15 @@ setup:
 	composer install
 	php artisan key:generate --no-interaction
 	php artisan migrate --no-interaction
-	@echo "Setup complete. Run 'make seed' to load demo data."
+	php artisan db:seed --no-interaction
+	@echo ""
+	@echo "✅ Local environment ready!"
+	@echo "   API: http://localhost:8000/api/docs"
+	@echo ""
+	@echo "Next steps:"
+	@echo "  make test      # Run tests"
+	@echo "  make coverage  # Generate coverage report"
+	@echo "  make quality   # Run pint + phpstan"
 
 test:
 	@rm -f bootstrap/cache/*.php
@@ -21,9 +29,6 @@ quality:
 
 migrate:
 	php artisan migrate --no-interaction
-
-seed:
-	php artisan db:seed --no-interaction
 
 fresh:
 	php artisan migrate:fresh --seed --no-interaction
@@ -43,7 +48,7 @@ docker-setup:
 	docker compose exec app php artisan migrate --seed --no-interaction
 	@echo ""
 	@echo "✅ Docker environment ready!"
-	@echo "   API: http://localhost:8000"
+	@echo "   API: http://localhost:8000/api/docs"
 	@echo "   Mail UI: http://localhost:8025"
 	@echo ""
 	@echo "Next steps:"
