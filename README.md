@@ -34,6 +34,13 @@ make docker-test       # Run tests
 make docker-quality    # Run pint + phpstan
 ```
 
+To turn down the containers:
+
+```bash
+cd laravel-api-users-management
+docker compose down -v --volumes
+```
+
 **Services:** API at `http://localhost:8000/api/docs`, mail UI (Mailpit) at `http://localhost:8025`.
 
 ### Mode 2 — Local PHP + Docker Mailpit
@@ -73,6 +80,19 @@ php -m | grep pcov
 ```
 
 The API is available at `http://localhost:8000/api/docs`. Mailpit UI at `http://localhost:8025`.
+
+---
+
+### Database isolation between Docker and local
+
+Local and Docker environments use separate SQLite database files so that running one mode never touches or corrupts the data of the other:
+
+| Mode | Database file |
+|---|---|
+| Local (`make setup`) | `database/database.sqlite` |
+| Docker (`make docker-setup`) | `database/database.docker.sqlite` |
+
+Tests always use `:memory:` and are unaffected.
 
 ---
 
