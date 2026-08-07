@@ -4,7 +4,11 @@ A Laravel REST API implementing user management with authentication, role-based 
 
 ## Demo
 
-TBA
+<div align="center">
+
+https://github.com/user-attachments/assets/8865a91d-657b-44c1-a58b-fee264859c63
+
+</div>
 
 ---
 
