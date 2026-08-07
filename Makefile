@@ -2,8 +2,9 @@
 
 setup:
 	cp -n .env.example .env || true
-	composer install
+	composer install -vvv --profile --prefer-dist
 	php artisan key:generate --no-interaction
+	touch database/database.sqlite
 	php artisan migrate --no-interaction
 	php artisan db:seed --no-interaction
 	@echo ""
@@ -24,6 +25,8 @@ coverage:
 	php artisan test --coverage --min=70 --compact
 
 coverage-report:
+	@rm -f bootstrap/cache/*.php
+	@rm -rf coverage-report
 	php artisan test --coverage-html=coverage-report --compact
 	@echo ""
 	@echo "✅ Coverage report generated!"
